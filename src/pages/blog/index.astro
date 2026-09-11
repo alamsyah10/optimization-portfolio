@@ -1,0 +1,30 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCollection } from 'astro:content';
+import { withBase } from '../../utils/paths';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
+---
+<BaseLayout title="Writing — Alamsyah Imanudin" description="Technical writing about optimization engineering, CP-SAT, scheduling, algorithms, and backend systems.">
+  <section class="container-shell py-20 sm:py-28">
+    <p class="font-mono text-xs uppercase tracking-[0.22em] text-[#77e6b6]">Writing</p>
+    <h1 class="mt-5 max-w-3xl text-4xl font-semibold tracking-[-0.035em] sm:text-6xl">Optimization engineering, from model to production.</h1>
+    <p class="mt-6 max-w-2xl text-lg leading-8 text-[#91a0ab]">Case studies and practical notes about mathematical modeling, constraint programming, algorithm trade-offs, and the software engineering required to make optimizers useful.</p>
+
+    <div class="mt-14 divide-y divide-[#242d38] border-y border-[#242d38]">
+      {posts.map((post) => (
+        <a href={withBase(`/blog/${post.id}/`)} class="group block py-8 sm:grid sm:grid-cols-[160px_1fr] sm:gap-8">
+          <time class="font-mono text-xs text-[#687782]">{post.data.pubDate.toISOString().slice(0, 10)}</time>
+          <div class="mt-3 sm:mt-0">
+            <h2 class="text-xl font-semibold tracking-tight group-hover:text-[#8ce9c1]">{post.data.title}</h2>
+            <p class="mt-2 max-w-2xl leading-7 text-[#8997a2]">{post.data.description}</p>
+            <div class="mt-4 flex flex-wrap gap-2">
+              {post.data.tags.map((tag) => <span class="tag">{tag}</span>)}
+            </div>
+          </div>
+        </a>
+      ))}
+    </div>
+  </section>
+</BaseLayout>

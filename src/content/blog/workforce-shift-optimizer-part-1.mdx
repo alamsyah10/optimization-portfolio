@@ -1,0 +1,79 @@
+---
+title: "Building a Workforce Shift Optimizer — Part 1"
+description: "From business rules to a clean constraint model for employee scheduling."
+pubDate: 2026-09-12
+tags: ["CP-SAT", "Scheduling", "Optimization"]
+draft: false
+---
+
+Employee scheduling is easy to describe and surprisingly difficult to model well.
+
+A manager might express the problem as: **“Put the right people on the right shifts while keeping the schedule fair.”** An optimizer needs a much more precise definition.
+
+## The problem
+
+For this portfolio project, I will build a generalized workforce scheduler using synthetic data. The first version will consider:
+
+- employee availability;
+- department skills;
+- minimum staffing requirements;
+- maximum weekly working hours;
+- one assignment per employee per day; and
+- employee shift preferences.
+
+The goal is not only to generate a feasible schedule, but to make the modeling decisions visible and explainable.
+
+## Decision variables
+
+The core binary decision can be written conceptually as:
+
+```text
+x[e, d, s, p] = 1
+```
+
+when employee `e` is assigned on day `d`, shift `s`, in department `p`. Otherwise, the value is `0`.
+
+This variable becomes the connection point between almost every rule in the model.
+
+## Hard constraints first
+
+Some rules should never be violated. For example, an employee cannot be scheduled when they are unavailable, and a cashier position should not be filled by someone without the required skill.
+
+I will model these as hard constraints:
+
+```text
+availability
+skill compatibility
+maximum weekly hours
+one shift per day
+minimum staffing
+```
+
+A useful design principle is to keep these rules separate from preferences. If every preference becomes mandatory, the feasible search space can quickly disappear.
+
+## Preferences are different
+
+Consider the rule:
+
+> Alice prefers morning shifts.
+
+That is very different from:
+
+> Alice is unavailable in the evening.
+
+The second rule restricts feasibility. The first rule influences solution quality.
+
+So the first objective will include a penalty for assigning employees to non-preferred shifts rather than banning those assignments entirely.
+
+```text
+minimize(
+  preference_penalty
+  + workload_imbalance
+)
+```
+
+## What comes next
+
+In Part 2, I will implement the first model using Google OR-Tools CP-SAT, create a synthetic dataset, and generate the first feasible weekly schedule.
+
+The source code will live in a separate GitHub repository so the article can focus on modeling decisions while the repository focuses on implementation quality.

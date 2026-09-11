@@ -1,0 +1,33 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { getCollection, render } from 'astro:content';
+import { withBase } from '../../utils/paths';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog', ({ data }) => !data.draft);
+  return posts.map((post) => ({ params: { id: post.id }, props: { post } }));
+}
+
+const { post } = Astro.props;
+const { Content } = await render(post);
+---
+<BaseLayout title={`${post.data.title} — Alamsyah Imanudin`} description={post.data.description}>
+  <article class="container-shell py-16 sm:py-24">
+    <a href={withBase('/blog/')} class="text-sm text-[#8bdcba] hover:underline">← All articles</a>
+    <header class="mt-10 max-w-4xl border-b border-[#242d38] pb-10">
+      <div class="flex flex-wrap items-center gap-3 font-mono text-xs text-[#71808b]">
+        <time>{post.data.pubDate.toISOString().slice(0, 10)}</time>
+        <span>·</span>
+        <span>Optimization Engineering</span>
+      </div>
+      <h1 class="mt-5 text-4xl font-semibold leading-tight tracking-[-0.035em] sm:text-6xl">{post.data.title}</h1>
+      <p class="mt-6 max-w-3xl text-lg leading-8 text-[#95a3ad]">{post.data.description}</p>
+      <div class="mt-6 flex flex-wrap gap-2">
+        {post.data.tags.map((tag) => <span class="tag">{tag}</span>)}
+      </div>
+    </header>
+    <div class="prose-optimization mt-12">
+      <Content />
+    </div>
+  </article>
+</BaseLayout>

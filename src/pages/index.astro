@@ -1,0 +1,141 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { projects, site, skills } from '../data/site';
+import { getCollection } from 'astro:content';
+import { withBase } from '../utils/paths';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft))
+  .sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf())
+  .slice(0, 3);
+---
+<BaseLayout>
+  <section class="relative overflow-hidden border-b border-white/5">
+    <div class="grid-fade pointer-events-none absolute inset-0"></div>
+    <div class="container-shell relative grid min-h-[680px] items-center py-24 lg:grid-cols-[1.25fr_.75fr] lg:gap-16">
+      <div>
+        <div class="mb-7 inline-flex items-center gap-2 rounded-full border border-[#274439] bg-[#0d1713] px-3 py-1.5 text-xs font-medium text-[#9ceac8]">
+          <span class="size-1.5 rounded-full bg-[#77e6b6]"></span>
+          Software Engineer · Optimization Systems
+        </div>
+        <h1 class="max-w-4xl text-5xl font-semibold leading-[1.04] tracking-[-0.045em] sm:text-6xl lg:text-7xl">
+          Turning complex constraints into
+          <span class="text-[#77e6b6]">practical software.</span>
+        </h1>
+        <p class="mt-7 max-w-2xl text-lg leading-8 text-[#9aa8b5] sm:text-xl">
+          {site.intro} I write about constraint programming, CP-SAT, scheduling, and the engineering around optimization systems.
+        </p>
+        <div class="mt-9 flex flex-wrap gap-3">
+          <a href={withBase('/#projects')} class="rounded-xl bg-[#77e6b6] px-5 py-3 text-sm font-semibold text-[#07110d] transition hover:brightness-110">Explore projects</a>
+          <a href={withBase('/blog/')} class="rounded-xl border border-[#29343f] bg-[#0d1218] px-5 py-3 text-sm font-semibold text-[#e8eef1] transition hover:border-[#3d4b58]">Read the blog</a>
+        </div>
+      </div>
+
+      <div class="mt-14 lg:mt-0">
+        <div class="card overflow-hidden shadow-2xl shadow-black/30">
+          <div class="flex items-center gap-1.5 border-b border-[#242d38] px-4 py-3">
+            <span class="size-2.5 rounded-full bg-[#39434d]"></span>
+            <span class="size-2.5 rounded-full bg-[#39434d]"></span>
+            <span class="size-2.5 rounded-full bg-[#39434d]"></span>
+            <span class="ml-3 font-mono text-[11px] text-[#6f7d89]">shift_optimizer.py</span>
+          </div>
+          <div class="space-y-4 p-5 font-mono text-[13px] leading-6">
+            <p><span class="text-[#7f8c98]"># Decision variable</span><br/><span class="text-[#77e6b6]">x[e, d, s]</span> = employee <span class="text-[#8aa8ff]">e</span> works shift <span class="text-[#8aa8ff]">s</span></p>
+            <p><span class="text-[#7f8c98]"># Hard constraints</span><br/><span class="text-[#cdd7dd]">availability · staffing · skills · hours</span></p>
+            <p><span class="text-[#7f8c98]"># Objective</span><br/><span class="text-[#d9b9ff]">minimize</span>(preference_penalty + imbalance)</p>
+            <div class="mt-5 rounded-lg border border-[#233a31] bg-[#0b1712] p-3 text-[#9ceac8]">
+              status: OPTIMAL<br/>
+              coverage: 100%<br/>
+              preference score: 91%
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="about" class="container-shell py-24">
+    <div class="grid gap-12 lg:grid-cols-[.7fr_1.3fr]">
+      <div>
+        <p class="font-mono text-xs uppercase tracking-[0.22em] text-[#77e6b6]">About</p>
+        <h2 class="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+          Learning optimization through practical projects.
+        </h2>
+      </div>
+
+      <div class="max-w-3xl text-lg leading-8 text-[#9aa8b5]">
+        <p>
+          I'm a software engineer currently learning and exploring mathematical optimization.
+          Through this portfolio, I document what I learn by applying optimization techniques
+          to practical problems such as scheduling and resource allocation, while continuing
+          to improve my skills in algorithms, modeling, and software engineering.
+        </p>
+
+        <div class="mt-8 flex flex-wrap gap-2">
+          {skills.map((skill) => <span class="tag">{skill}</span>)}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="projects" class="border-y border-white/5 bg-[#0b0f14]/70 py-24">
+    <div class="container-shell">
+      <div class="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p class="font-mono text-xs uppercase tracking-[0.22em] text-[#77e6b6]">Selected work</p>
+          <h2 class="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">Optimization projects</h2>
+        </div>
+        <p class="max-w-md text-sm leading-6 text-[#8d9aa6]">Generalized portfolio projects built with synthetic data — focused on modeling decisions, algorithms, trade-offs, and implementation quality.</p>
+      </div>
+      <div class="grid gap-4 lg:grid-cols-3">
+        {projects.map((project, index) => (
+          <a href={project.href === '#' ? '#' : withBase(project.href)} class="card group flex min-h-72 flex-col p-6 transition hover:-translate-y-1 hover:border-[#395044] hover:bg-[#111820]">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-xs text-[#687681]">0{index + 1}</span>
+              <span class={`rounded-full px-2.5 py-1 text-[11px] ${project.status === 'In progress' ? 'bg-[#102219] text-[#8ce5ba]' : 'bg-[#171d24] text-[#83909b]'}`}>{project.status}</span>
+            </div>
+            <h3 class="mt-10 text-xl font-semibold tracking-tight group-hover:text-[#92ebc5]">{project.title}</h3>
+            <p class="mt-4 flex-1 text-sm leading-6 text-[#8f9da8]">{project.description}</p>
+            <div class="mt-6 flex flex-wrap gap-2">
+              {project.tags.map((tag) => <span class="tag">{tag}</span>)}
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="container-shell py-24">
+    <div class="mb-10 flex items-end justify-between gap-4">
+      <div>
+        <p class="font-mono text-xs uppercase tracking-[0.22em] text-[#77e6b6]">Writing</p>
+        <h2 class="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">Notes on optimization engineering</h2>
+      </div>
+      <a href={withBase('/blog/')} class="hidden text-sm text-[#9ceac8] hover:underline sm:block">All articles →</a>
+    </div>
+    <div class="divide-y divide-[#242d38] border-y border-[#242d38]">
+      {posts.map((post) => (
+        <a href={withBase(`/blog/${post.id}/`)} class="group grid gap-4 py-7 transition sm:grid-cols-[150px_1fr_auto] sm:items-center">
+          <time class="font-mono text-xs text-[#6f7c87]">{post.data.pubDate.toISOString().slice(0, 10)}</time>
+          <div>
+            <h3 class="font-semibold group-hover:text-[#91e9c3]">{post.data.title}</h3>
+            <p class="mt-1 text-sm text-[#87949f]">{post.data.description}</p>
+          </div>
+          <span class="text-[#62717c] transition group-hover:translate-x-1 group-hover:text-[#91e9c3]">→</span>
+        </a>
+      ))}
+    </div>
+  </section>
+
+  <section id="contact" class="container-shell pb-24">
+    <div class="card relative overflow-hidden p-8 sm:p-12">
+      <div class="absolute -right-16 -top-20 size-64 rounded-full bg-[#77e6b6]/5 blur-3xl"></div>
+      <p class="font-mono text-xs uppercase tracking-[0.22em] text-[#77e6b6]">Contact</p>
+      <h2 class="mt-4 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">Interested in optimization, backend systems, or algorithm engineering?</h2>
+      <p class="mt-5 max-w-2xl leading-7 text-[#93a0aa]">I’m always interested in technical conversations around scheduling, operations research, solver architecture, and production software.</p>
+      <div class="mt-8 flex flex-wrap gap-3">
+        <a href={`mailto:${site.email}`} class="rounded-xl bg-[#edf5f1] px-5 py-3 text-sm font-semibold text-[#0a100d]">Email me</a>
+        <a href={site.linkedin} target="_blank" rel="noreferrer" class="rounded-xl border border-[#29343f] px-5 py-3 text-sm font-semibold">LinkedIn ↗</a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

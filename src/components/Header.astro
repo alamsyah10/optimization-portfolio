@@ -1,0 +1,21 @@
+---
+import { site } from '../data/site';
+import { withBase } from '../utils/paths';
+---
+<header class="sticky top-0 z-50 border-b border-white/5 bg-[#090c10]/80 backdrop-blur-xl">
+  <div class="container-shell flex h-16 items-center justify-between">
+    <a href={withBase('/')} class="flex items-center gap-3 font-semibold tracking-tight">
+      <span class="grid size-8 place-items-center rounded-lg border border-[#2a3944] bg-[#101820] font-mono text-xs text-[#77e6b6]">AI</span>
+      <span>{site.name}</span>
+    </a>
+    <nav class="hidden items-center gap-6 text-sm text-[#9aa8b5] md:flex">
+      <a class="transition hover:text-white" href={withBase('/#about')}>About</a>
+      <a class="transition hover:text-white" href={withBase('/#projects')}>Projects</a>
+      <a class="transition hover:text-white" href={withBase('/blog/')}>Writing</a>
+      <a class="transition hover:text-white" href={withBase('/#contact')}>Contact</a>
+    </nav>
+    <a href={site.github} target="_blank" rel="noreferrer" class="rounded-lg border border-[#29343f] px-3 py-2 text-sm text-[#dbe4e9] transition hover:border-[#486051] hover:bg-[#111a16]">
+      GitHub ↗
+    </a>
+  </div>
+</header>
