@@ -1,88 +1,207 @@
 # Optimization Portfolio
 
-Personal portfolio and technical blog focused on optimization engineering, algorithms, and backend systems.
+Personal portfolio and technical blog for documenting my learning and projects around software engineering, mathematical optimization, and algorithms.
 
-## Stack
+The site is built with Astro and is used to publish project write-ups, technical notes, and experiments related to topics such as workforce scheduling, constraint programming, and optimization modeling.
 
-- Astro 7
+## Tech Stack
+
+- Astro
 - MDX
-- Tailwind CSS 4
+- Tailwind CSS
+- TypeScript
 - GitHub Pages
 
-## Local development
+## Getting Started
 
-Astro 7 requires Node.js 22.12+.
+### Requirements
+
+Make sure Node.js is installed.
+
+You can check your current version with:
+
+```bash
+node --version
+```
+
+This project uses Astro 7, so Node.js 22.12+ is recommended.
+
+### Install dependencies
 
 ```bash
 npm install
-# Commit the generated package-lock.json as well.
+```
+
+### Run locally
+
+```bash
 npm run dev
 ```
 
-Open the local URL printed by Astro.
+Astro will start a local development server, usually at:
 
-## Customize before publishing
-
-### 1. Personal links
-
-Edit `src/data/site.ts`:
-
-- email
-- GitHub URL
-- LinkedIn URL
-- intro / skills if needed
-
-### 2. GitHub Pages URL
-
-Edit `astro.config.mjs`:
-
-```js
-site: 'https://YOUR_USERNAME.github.io',
-base: '/optimization-portfolio',
+```text
+http://localhost:4321
 ```
 
-If you rename the repository, change `base` to match the repository name.
+Open the URL shown in your terminal.
 
-If your repository itself is named `YOUR_USERNAME.github.io`, remove the `base` option entirely.
+## Build
 
-### 3. Add a blog post
+To create a production build:
 
-Create a new `.md` or `.mdx` file under:
+```bash
+npm run build
+```
+
+The generated static files will be placed in:
+
+```text
+dist/
+```
+
+You can preview the production build locally with:
+
+```bash
+npm run preview
+```
+
+## Project Structure
+
+```text
+src/
+├── components/
+│   ├── Header.astro
+│   └── Footer.astro
+│
+├── content/
+│   └── blog/
+│
+├── data/
+│   └── site.ts
+│
+├── layouts/
+│   └── BaseLayout.astro
+│
+├── pages/
+│   ├── index.astro
+│   └── blog/
+│
+├── styles/
+│   └── global.css
+│
+└── utils/
+```
+
+### `src/pages`
+
+Contains the main website pages.
+
+The homepage is located at:
+
+```text
+src/pages/index.astro
+```
+
+### `src/content/blog`
+
+Contains technical articles written in Markdown or MDX.
+
+For example:
+
+```text
+src/content/blog/workforce-shift-optimizer-part-1.mdx
+```
+
+### `src/data/site.ts`
+
+Contains personal information and links used across the site, such as:
+
+- name
+- introduction
+- email
+- GitHub
+- LinkedIn
+
+## Writing a Blog Post
+
+Create a new `.md` or `.mdx` file inside:
 
 ```text
 src/content/blog/
 ```
 
-Use frontmatter like:
+Example:
 
-```yaml
+```md
 ---
-title: "Article title"
-description: "Short description"
+title: "Building a Workforce Shift Optimizer"
+description: "Exploring how business rules can be modeled as optimization constraints."
 pubDate: 2026-09-12
-tags: ["Optimization", "CP-SAT"]
+tags:
+  - Optimization
+  - CP-SAT
+  - Scheduling
 draft: false
 ---
+
+# Introduction
+
+Article content goes here.
 ```
 
-## Deploy to GitHub Pages
+MDX can also be used when the article needs custom Astro or UI components.
 
-1. Create a GitHub repository named `optimization-portfolio`.
-2. Push this project to the `main` branch.
-3. Open **Settings → Pages** in the GitHub repository.
-4. Set **Source** to **GitHub Actions**.
-5. The included `.github/workflows/deploy.yml` will build and deploy automatically on every push to `main`.
+## GitHub Pages
 
-Your site will be available at:
+This website is deployed using GitHub Pages.
+
+Current deployment URL:
 
 ```text
-https://YOUR_USERNAME.github.io/optimization-portfolio/
+https://alamsyah10.github.io/optimization-portfolio/
 ```
 
-## Useful commands
+The GitHub Pages configuration is defined in:
+
+```text
+astro.config.mjs
+```
+
+Deployment is handled automatically by:
+
+```text
+.github/workflows/deploy.yml
+```
+
+Every push to the `main` branch triggers a new build and deployment.
+
+## Useful Commands
 
 ```bash
+# Start local development server
 npm run dev
+
+# Create production build
 npm run build
+
+# Preview production build
 npm run preview
 ```
+
+## Current Focus
+
+The first series of articles focuses on workforce shift optimization.
+
+Topics I plan to explore include:
+
+- workforce scheduling
+- constraint programming
+- Google OR-Tools CP-SAT
+- hard and soft constraints
+- objective function design
+- optimization model debugging
+- algorithm comparison
+- backend integration for optimization systems
+
+This repository will continue to evolve as I learn and build more optimization-related projects.
