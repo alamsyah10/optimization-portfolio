@@ -1,0 +1,445 @@
+---
+title: "Building a Workforce Shift Optimizer — Part 2"
+description: "Implementing the first workforce scheduling model with Google OR-Tools CP-SAT."
+pubDate: 2026-09-12
+tags: ["CP-SAT", "Scheduling", "Optimization", "Python"]
+draft: false
+---
+
+[← Part 1 — From Business Rules to a Constraint Model](
+  ../workforce-shift-optimizer-part-1/
+)
+
+In Part 1, I defined the scheduling problem conceptually. In this article, I turn that model into a small working implementation using Google OR-Tools CP-SAT.
+
+The code is available here:
+
+[github.com/alamsyah10/workforce-shift-optimizer](https://github.com/alamsyah10/workforce-shift-optimizer)
+
+This article covers the initial `v0.1` model.
+
+## The first scenario
+
+The synthetic dataset contains:
+
+```text
+4 employees
+3 days
+2 shifts
+2 departments
+```
+
+The shifts are `morning` and `evening`, and the departments are `cashier` and `sales`. Each shift lasts eight hours.
+
+| Employee | Skills | Available days | Max hours | Preferred shift |
+| --- | --- | --- | ---: | --- |
+| Alice | Cashier, Sales | Mon, Tue, Wed | 24 | Morning |
+| Bob | Cashier | Mon, Wed | 16 | Morning |
+| Charlie | Sales | Mon, Tue | 16 | Evening |
+| Diana | Cashier, Sales | Tue, Wed | 16 | Evening |
+
+The scenario is stored in:
+
+```text
+examples/basic_scenario.json
+```
+
+Keeping the input separate from the solver makes it easier to change scenarios without changing optimization logic.
+
+## The project structure
+
+The reusable implementation lives under `src/`, while the notebook is only used for exploration and explanation.
+
+```text
+workforce-shift-optimizer/
+├── examples/
+│   └── basic_scenario.json
+├── notebooks/
+│   └── 01_first_schedule.ipynb
+├── src/
+│   └── workforce_shift_optimizer/
+│       ├── __init__.py
+│       ├── formatter.py
+│       ├── models.py
+│       └── solver.py
+└── tests/
+    └── -
+```
+
+This keeps the solver reusable from notebooks, scripts, or tests.
+
+## Modeling the input
+
+I use Pydantic to represent the scheduling data.
+
+```python
+class Employee(BaseModel):
+    id: str
+    name: str
+    skills: set[str]
+    availability: dict[str, list[ShiftName]]
+    max_weekly_hours: int
+    preferred_shift: ShiftName | None = None
+```
+
+A staffing requirement is represented as:
+
+```python
+class StaffingRequirement(BaseModel):
+    day: str
+    shift: ShiftName
+    department: str
+    required_staff: int
+```
+
+These models keep input validation separate from the solver.
+
+## Decision variables
+
+The conceptual decision variable is:
+
+```text
+x[e, d, s, p] ∈ {0, 1}
+```
+
+where:
+
+```text
+e = employee
+d = day
+s = shift
+p = department
+```
+
+A value of `1` means the employee is assigned to that day, shift, and department.
+
+The implementation uses CP-SAT Boolean variables:
+
+```python
+variables[
+    employee.id,
+    day,
+    shift,
+    department,
+] = model.NewBoolVar(
+    f"x_{employee.id}_{day}_{shift}_{department}"
+)
+```
+
+## Do not create obviously invalid variables
+
+Availability and skill compatibility are hard rules, but I encode them before creating variables.
+
+```python
+if shift not in available_shifts:
+    continue
+
+if department not in employee.skills:
+    continue
+```
+
+For example, Bob only has the `cashier` skill, so this variable is never created:
+
+```text
+x[Bob, Monday, Morning, Sales]
+```
+
+This keeps obviously impossible assignments out of the model.
+
+## Constraint 1: one assignment per day
+
+For every employee and day:
+
+```text
+Σ x[e, d, s, p] <= 1
+  over all shifts s and departments p
+```
+
+In code:
+
+```python
+model.Add(
+    sum(daily_variables) <= 1
+)
+```
+
+This prevents an employee from receiving multiple assignments on the same day.
+
+## Constraint 2: maximum weekly hours
+
+Each shift lasts eight hours.
+
+For every employee:
+
+```text
+Σ hours[s] × x[e, d, s, p] <= max_hours[e]
+```
+
+The model adds:
+
+```python
+model.Add(
+    sum(hour_terms)
+    <= employee.max_weekly_hours
+)
+```
+
+The current limits are:
+
+```text
+Alice   24 hours
+Bob     16 hours
+Charlie 16 hours
+Diana   16 hours
+```
+
+## Constraint 3: minimum staffing
+
+Each staffing requirement describes a specific day, shift, and department.
+
+For example:
+
+```text
+Monday
+Morning
+Cashier
+1 employee
+```
+
+The model requires:
+
+```text
+Σ x[e, d, s, p] >= required_staff[d, s, p]
+```
+
+In code:
+
+```python
+model.Add(
+    sum(eligible_variables)
+    >= requirement.required_staff
+)
+```
+
+For `v0.1`, understaffing is not allowed.
+
+## Shift preferences as a soft constraint
+
+Preferences affect solution quality, not feasibility.
+
+If an assignment does not match the employee's preferred shift, it receives a penalty:
+
+```python
+if (
+    employee.preferred_shift is not None
+    and shift != employee.preferred_shift
+):
+    preference_penalties.append(variable)
+```
+
+The solver then tries to avoid those assignments when possible.
+
+## The objective function
+
+Because staffing uses `>=`, unnecessary extra assignments could still satisfy all constraints.
+
+So the objective is:
+
+```python
+model.Minimize(
+    PREFERENCE_PENALTY
+    * sum(preference_penalties)
+    + total_assignments
+)
+```
+
+with:
+
+```python
+PREFERENCE_PENALTY = 100
+```
+
+Conceptually:
+
+```text
+minimize(
+  100 × preference_violations
+  + total_assignments
+)
+```
+
+For this small scenario, the preference penalty is the main objective, while `total_assignments` discourages unnecessary staffing.
+
+For larger models, the relative weights would need more careful tuning.
+
+## Reasoning about the result before running CP-SAT
+
+Tuesday already tells us something important.
+
+Available employees:
+
+```text
+Alice   → prefers Morning
+Charlie → prefers Evening
+Diana   → prefers Evening
+```
+
+Required staffing:
+
+```text
+Morning: 2 employees
+Evening: 1 employee
+```
+
+Only Alice prefers morning, but two morning assignments are required.
+
+So at least one preference violation is unavoidable.
+
+There are nine assignments in total, so the theoretical best preference satisfaction is:
+
+```text
+8 / 9 × 100 = 88.9%
+```
+
+This gives us a useful value to compare with the solver result.
+
+## Running the solver
+
+The notebook runs:
+
+```python
+scheduler = WorkforceScheduler(problem)
+result = scheduler.solve()
+```
+
+The solver returns:
+
+```text
+OPTIMAL
+```
+
+For this model, that means CP-SAT found a feasible schedule and proved that no better objective value exists.
+
+## One optimal schedule
+
+One possible optimal schedule is:
+
+| Day | Shift | Department | Employee |
+| --- | --- | --- | --- |
+| Mon | Morning | Cashier | Bob |
+| Mon | Morning | Sales | Alice |
+| Mon | Evening | Sales | Charlie |
+| Tue | Morning | Cashier | Alice |
+| Tue | Morning | Sales | Diana |
+| Tue | Evening | Sales | Charlie |
+| Wed | Morning | Cashier | Bob |
+| Wed | Morning | Sales | Alice |
+| Wed | Evening | Sales | Diana |
+
+Other schedules may have the same objective value, so the optimal schedule is not necessarily unique.
+
+## Checking the result
+
+The result matches the manual reasoning:
+
+```text
+Staffing coverage:       100.0%
+Preference satisfaction: 88.9%
+```
+
+All nine required assignments are filled, and only one assignment violates a preferred shift.
+
+## Working hours
+
+The resulting workload is:
+
+```text
+Alice   24 / 24 hours
+Bob     16 / 16 hours
+Charlie 16 / 16 hours
+Diana   16 / 16 hours
+```
+
+All employees stay within their limits.
+
+Because nearly all available capacity is needed, this scenario does not yet give the solver much freedom to optimize fairness.
+
+## Testing the model
+
+The current tests verify that:
+
+```text
+a solution is found
+staffing coverage is 100%
+preference satisfaction is 88.9%
+the schedule contains 9 assignments
+```
+
+They also check:
+
+```text
+employee availability
+employee skills
+one assignment per day
+weekly hour limits
+```
+
+This helps ensure that a good objective value is not hiding a broken business rule.
+
+## Using Jupyter without putting the solver in the notebook
+
+The notebook stays intentionally thin.
+
+```python
+from workforce_shift_optimizer import (
+    SchedulingProblem,
+    WorkforceScheduler,
+)
+
+problem = SchedulingProblem.from_json(
+    ROOT / "examples" / "basic_scenario.json"
+)
+
+result = WorkforceScheduler(problem).solve()
+```
+
+The notebook handles explanation and visualization, while the reusable implementation remains in:
+
+```text
+src/workforce_shift_optimizer/
+```
+
+## What v0.1 does not solve yet
+
+The first version does not yet include:
+
+- workload fairness;
+- maximum consecutive working days;
+- minimum rest between shifts;
+- weekend fairness;
+- requested days off as soft preferences;
+- skill proficiency levels;
+- understaffing penalties; or
+- more complex employment rules.
+
+The goal of `v0.1` is simply to establish a small model that is easy to understand and verify.
+
+## What I learned from the first model
+
+The main lesson is that optimization starts before calling the solver.
+
+The important questions are:
+
+```text
+Which decisions need variables?
+Which combinations should not exist?
+Which rules are mandatory?
+Which rules should affect only solution quality?
+How should objectives be weighted?
+```
+
+For this small scenario, runtime is not the interesting part.
+
+The useful part is translating an informal scheduling problem into a model whose result can be understood and checked.
+
+Future iterations can build on this baseline with more scheduling freedom, fairness, and richer objectives.

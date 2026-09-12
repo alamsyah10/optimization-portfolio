@@ -8,11 +8,19 @@ draft: false
 
 Employee scheduling is easy to describe and surprisingly difficult to model well.
 
-A manager might express the problem as: **“Put the right people on the right shifts while keeping the schedule fair.”** An optimizer needs a much more precise definition.
+A manager might express the problem as:
+
+> **“Put the right people on the right shifts while keeping the schedule fair.”**
+
+An optimizer needs a much more precise definition.
+
+This project is my attempt to learn workforce optimization by starting with a deliberately small model, making each rule explicit, and gradually adding complexity only when the previous version is easy to understand.
 
 ## The problem
 
-For this portfolio project, I will build a generalized workforce scheduler using synthetic data. The first version will consider:
+For this portfolio project, I will build a generalized workforce scheduler using synthetic data.
+
+The first version will consider:
 
 - employee availability;
 - department skills;
@@ -21,7 +29,9 @@ For this portfolio project, I will build a generalized workforce scheduler using
 - one assignment per employee per day; and
 - employee shift preferences.
 
-The goal is not only to generate a feasible schedule, but to make the modeling decisions visible and explainable.
+The goal is not to build a complete workforce management system immediately.
+
+Instead, I want to start with a small scheduling problem that is easy to inspect manually, then use it as a baseline for understanding how constraint programming behaves.
 
 ## Decision variables
 
@@ -31,49 +41,193 @@ The core binary decision can be written conceptually as:
 x[e, d, s, p] = 1
 ```
 
-when employee `e` is assigned on day `d`, shift `s`, in department `p`. Otherwise, the value is `0`.
+when employee `e` is assigned on day `d`, shift `s`, in department `p`.
+
+Otherwise:
+
+```text
+x[e, d, s, p] = 0
+```
+
+The indices represent:
+
+```text
+e = employee
+d = day
+s = shift
+p = department
+```
 
 This variable becomes the connection point between almost every rule in the model.
 
+For example:
+
+```text
+x[Alice, Monday, Morning, Cashier] = 1
+```
+
+means Alice is assigned to the cashier department on Monday morning.
+
 ## Hard constraints first
 
-Some rules should never be violated. For example, an employee cannot be scheduled when they are unavailable, and a cashier position should not be filled by someone without the required skill.
+Some rules should never be violated.
 
-I will model these as hard constraints:
+For example:
+
+- an employee should not be scheduled when they are unavailable;
+- an employee should not work in a department they are not qualified for;
+- an employee should not exceed their weekly working-hour limit; and
+- every required staffing position should be covered.
+
+These rules determine whether a schedule is feasible.
+
+The first model therefore treats the following as hard requirements:
 
 ```text
 availability
 skill compatibility
 maximum weekly hours
-one shift per day
+one assignment per employee per day
 minimum staffing
 ```
 
-A useful design principle is to keep these rules separate from preferences. If every preference becomes mandatory, the feasible search space can quickly disappear.
+### Availability
+
+If an employee is unavailable for a shift, that assignment should not be allowed.
+
+Conceptually:
+
+```text
+if employee e is unavailable on day d, shift s:
+
+x[e, d, s, p] = 0
+```
+
+for every department `p`.
+
+### Skill compatibility
+
+An employee should only be assigned to a department they are qualified to work in.
+
+For example, someone with only the `cashier` skill should not be assigned to a `sales` position.
+
+### One assignment per day
+
+For each employee and day:
+
+```text
+Σ x[e, d, s, p] <= 1
+  over all shifts s and departments p
+```
+
+This keeps the first version simple by allowing at most one shift assignment per employee per day.
+
+### Maximum weekly working hours
+
+Each shift has a duration.
+
+The total assigned hours for an employee must remain within their weekly limit:
+
+```text
+Σ hours[s] × x[e, d, s, p] <= max_hours[e]
+  over all days d, shifts s, and departments p
+```
+
+### Minimum staffing
+
+For every day, shift, and department, enough employees must be assigned:
+
+```text
+Σ x[e, d, s, p] >= required_staff[d, s, p]
+  over all employees e
+```
+
+In the first version, understaffing is not allowed.
+
+If the required staffing cannot be satisfied, the model should be infeasible.
 
 ## Preferences are different
 
-Consider the rule:
+Not every business rule needs to be mandatory.
+
+Consider these two statements:
 
 > Alice prefers morning shifts.
 
-That is very different from:
+and:
 
 > Alice is unavailable in the evening.
 
-The second rule restricts feasibility. The first rule influences solution quality.
+They may sound similar from a scheduling perspective, but they mean very different things mathematically.
 
-So the first objective will include a penalty for assigning employees to non-preferred shifts rather than banning those assignments entirely.
+The second statement affects feasibility.
+
+The first statement affects solution quality.
+
+If Alice prefers mornings, assigning her to an evening shift can still be valid. It is simply less desirable.
+
+So instead of forbidding non-preferred shifts, I will give them a penalty.
+
+The first objective can therefore be thought of conceptually as:
 
 ```text
 minimize(
   preference_penalty
-  + workload_imbalance
 )
 ```
 
+For the first implementation, I will intentionally keep the objective simple.
+
+More advanced goals such as workload balancing, weekend fairness, and consecutive-day fairness can be introduced later once the basic model is working correctly.
+
+## Why start small?
+
+Real workforce scheduling systems can contain many more rules:
+
+```text
+minimum rest between shifts
+maximum consecutive working days
+requested days off
+weekend fairness
+multiple skill levels
+different employment contracts
+overtime
+understaffing penalties
+overstaffing costs
+```
+
+Adding everything at once would make it difficult to understand which modeling decision caused a particular solver behavior.
+
+For the first version, I would rather use a small synthetic scenario where the result can also be reasoned about manually.
+
+That gives me a useful baseline before increasing the model complexity.
+
 ## What comes next
 
-In Part 2, I will implement the first model using Google OR-Tools CP-SAT, create a synthetic dataset, and generate the first feasible weekly schedule.
+In Part 2, I will turn this model into an executable implementation using Google OR-Tools CP-SAT.
+
+The first experiment will use a deliberately small synthetic dataset with:
+
+```text
+4 employees
+3 days
+2 shifts
+2 departments
+```
+
+I will then:
+
+- define the input models;
+- create the CP-SAT assignment variables;
+- add the hard constraints;
+- add a penalty for non-preferred shifts;
+- generate the first schedule; and
+- compare the solver result with what can be reasoned about manually.
 
 The source code will live in a separate GitHub repository so the article can focus on modeling decisions while the repository focuses on implementation quality.
+
+## Continue reading
+
+[Part 2 — From Constraints to the First CP-SAT Schedule](
+  ../workforce-shift-optimizer-part-2/
+)
