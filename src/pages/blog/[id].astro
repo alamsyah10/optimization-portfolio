@@ -5,29 +5,157 @@ import { withBase } from '../../utils/paths';
 
 export async function getStaticPaths() {
   const posts = await getCollection('blog', ({ data }) => !data.draft);
-  return posts.map((post) => ({ params: { id: post.id }, props: { post } }));
+
+  return posts.map((post) => ({
+    params: { id: post.id },
+    props: { post },
+  }));
 }
 
 const { post } = Astro.props;
 const { Content } = await render(post);
+
+const posts = await getCollection(
+  'blog',
+  ({ data }) => !data.draft,
+);
+
+const relatedPosts = posts
+  .filter((candidate) => candidate.id !== post.id)
+  .map((candidate) => {
+    const sharedTags = candidate.data.tags.filter((tag) =>
+      post.data.tags.includes(tag)
+    );
+
+    return {
+      post: candidate,
+      score: sharedTags.length,
+    };
+  })
+  .filter(({ score }) => score > 0)
+  .sort(
+    (a, b) =>
+      b.score - a.score ||
+      b.post.data.pubDate.getTime() -
+        a.post.data.pubDate.getTime()
+  )
+  .slice(0, 3)
+  .map(({ post }) => post);
 ---
-<BaseLayout title={`${post.data.title} — Alamsyah Imanudin`} description={post.data.description}>
+
+<BaseLayout
+  title={`${post.data.title} — Alamsyah Imanudin`}
+  description={post.data.description}
+>
   <article class="container-shell py-16 sm:py-24">
-    <a href={withBase('/blog/')} class="text-sm text-[#8bdcba] hover:underline">← All articles</a>
-    <header class="mt-10 max-w-4xl border-b border-[#242d38] pb-10">
-      <div class="flex flex-wrap items-center gap-3 font-mono text-xs text-[#71808b]">
-        <time>{post.data.pubDate.toISOString().slice(0, 10)}</time>
-        <span>·</span>
-        <span>Optimization Engineering</span>
-      </div>
-      <h1 class="mt-5 text-4xl font-semibold leading-tight tracking-[-0.035em] sm:text-6xl">{post.data.title}</h1>
-      <p class="mt-6 max-w-3xl text-lg leading-8 text-[#95a3ad]">{post.data.description}</p>
-      <div class="mt-6 flex flex-wrap gap-2">
-        {post.data.tags.map((tag) => <span class="tag">{tag}</span>)}
-      </div>
-    </header>
-    <div class="prose-optimization mt-12">
-      <Content />
+    <div class="grid gap-16 xl:grid-cols-[minmax(0,1fr)_280px]">
+
+      <!-- Main article -->
+      <main class="min-w-0">
+        <a
+          href={withBase('/blog/')}
+          class="text-sm text-[#8bdcba] hover:underline"
+        >
+          ← All articles
+        </a>
+
+        <header class="mt-10 border-b border-[#242d38] pb-10">
+          <div
+            class="flex flex-wrap items-center gap-3 font-mono text-xs text-[#71808b]"
+          >
+            <time>
+              {post.data.pubDate.toISOString().slice(0, 10)}
+            </time>
+
+            <span>·</span>
+
+            <span>Optimization Engineering</span>
+          </div>
+
+          <h1
+            class="mt-5 text-4xl font-semibold leading-tight tracking-[-0.035em] sm:text-6xl"
+          >
+            {post.data.title}
+          </h1>
+
+          <p class="mt-6 max-w-3xl text-lg leading-8 text-[#95a3ad]">
+            {post.data.description}
+          </p>
+
+          <div class="mt-6 flex flex-wrap gap-2">
+            {post.data.tags.map((tag) => (
+              <span class="tag">{tag}</span>
+            ))}
+          </div>
+        </header>
+
+        <div class="prose-optimization mt-12">
+          <Content />
+        </div>
+      </main>
+
+      <!-- Sidebar -->
+      <aside class="hidden xl:block">
+        <div class="sticky top-28 space-y-8">
+
+          {relatedPosts.length > 0 && (
+            <section>
+              <p
+                class="font-mono text-xs uppercase tracking-[0.18em] text-[#71808b]"
+              >
+                Related articles
+              </p>
+
+              <div class="mt-4 space-y-3">
+                {relatedPosts.map((related) => (
+                  <a
+                    href={withBase(`/blog/${related.id}/`)}
+                    class="block rounded-xl border border-[#242d38] p-4 transition hover:border-[#3b4a58] hover:bg-[#0d1217]"
+                  >
+                    <p class="text-sm font-medium leading-6 text-[#dce5eb]">
+                      {related.data.title}
+                    </p>
+
+                    <p class="mt-2 font-mono text-xs text-[#71808b]">
+                      {related.data.pubDate
+                        .toISOString()
+                        .slice(0, 10)}
+                    </p>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+
+          <section class="rounded-xl border border-[#242d38] p-5">
+            <p
+              class="font-mono text-xs uppercase tracking-[0.18em] text-[#71808b]"
+            >
+              Project
+            </p>
+
+            <h2 class="mt-3 text-sm font-medium text-[#dce5eb]">
+              Workforce Shift Optimizer
+            </h2>
+
+            <p class="mt-2 text-sm leading-6 text-[#8998a3]">
+              A learning project exploring workforce scheduling with
+              Google OR-Tools CP-SAT.
+            </p>
+
+            <a
+              href="https://github.com/alamsyah10/workforce-shift-optimizer"
+              target="_blank"
+              rel="noreferrer"
+              class="mt-4 inline-block text-sm text-[#8bdcba] hover:underline"
+            >
+              View on GitHub ↗
+            </a>
+          </section>
+
+        </div>
+      </aside>
+
     </div>
   </article>
 </BaseLayout>
