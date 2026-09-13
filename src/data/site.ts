@@ -23,7 +23,7 @@ export const skills = [
 export const projects = [
   {
     title: 'Workforce Shift Optimization',
-    status: 'v0.1',
+    status: 'v0.2',
     description:
       'A learning project exploring workforce scheduling with CP-SAT, including employee availability, skills, staffing requirements, working-hour limits, and shift preferences.',
     tags: ['CP-SAT', 'Scheduling', 'Python'],

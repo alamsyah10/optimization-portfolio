@@ -1,0 +1,258 @@
+---
+title: "Building a Workforce Shift Optimizer — Part 3"
+description: "Adding workload fairness and exploring trade-offs between balanced schedules and employee preferences."
+pubDate: 2026-09-13
+tags: ["CP-SAT", "Scheduling", "Optimization", "Python"]
+draft: false
+---
+
+[← Part 2 — From Constraints to the First CP-SAT Schedule](
+  ../workforce-shift-optimizer-part-2/
+)
+
+In Part 2, I built the first working CP-SAT schedule.
+
+The next step is to explore a different question:
+
+> What if a schedule is feasible, but the workload is not distributed evenly?
+
+This article adds a simple workload fairness objective and compares how different objective weights change the result.
+
+The code is available here:
+
+[github.com/alamsyah10/workforce-shift-optimizer](https://github.com/alamsyah10/workforce-shift-optimizer)
+
+This article covers the `v0.2` model, which adds a simple workload fairness objective on top of the `v0.1` scheduler.
+
+## A new fairness scenario
+
+The new scenario adds a fifth employee, Edward.
+
+Edward can work only on Tuesday, which gives the solver more scheduling flexibility without making every employee equally available.
+
+The scenario is stored in:
+
+```text
+examples/fairness_scenario.json
+```
+
+There are still nine required assignments across three days.
+
+For this version, staffing is exact:
+
+```python
+model.add(
+    sum(eligible_variables)
+    == requirement.required_staff
+)
+```
+
+This prevents the solver from adding unnecessary employees just to improve the fairness score.
+
+## Measuring workload
+
+For now, workload is defined as the number of assigned shifts.
+
+For each employee:
+
+```text
+workload[e] = Σ x[e, d, s, p]
+```
+
+The model then tracks:
+
+```text
+max_workload
+min_workload
+```
+
+and defines:
+
+```text
+workload_imbalance
+=
+max_workload - min_workload
+```
+
+A smaller value means the number of shifts is distributed more evenly.
+
+## Adding fairness to the objective
+
+The first model already penalizes non-preferred shifts:
+
+```text
+preference penalty = 100
+```
+
+The new objective is:
+
+```text
+minimize(
+  100 × preference_violations
+  + fairness_weight × workload_imbalance
+)
+```
+
+This creates a trade-off between two goals:
+
+```text
+respect employee preferences
+balance employee workload
+```
+
+## Baseline: fairness weight = 0
+
+With fairness disabled:
+
+```python
+WorkforceScheduler(
+    problem,
+    workload_fairness_weight=0,
+)
+```
+
+the solver produces:
+
+```text
+Alice    3 shifts
+Bob      2 shifts
+Charlie  1 shift
+Diana    2 shifts
+Edward   1 shift
+```
+
+Results:
+
+```text
+Staffing coverage:       100.0%
+Preference satisfaction: 100.0%
+Workload imbalance:      2
+Objective value:         0
+```
+
+The schedule satisfies every preference, but workload is not very balanced.
+
+## Small fairness weight: 10
+
+With:
+
+```text
+fairness_weight = 10
+```
+
+the result is still:
+
+```text
+Preference satisfaction: 100.0%
+Workload imbalance:      2
+Objective value:         20
+```
+
+A preference violation costs `100`, while reducing the imbalance by one only saves `10`.
+
+So preference remains more important.
+
+## Larger fairness weight: 150
+
+With:
+
+```text
+fairness_weight = 150
+```
+
+the solver chooses a more balanced schedule:
+
+```text
+Alice    2 shifts
+Bob      2 shifts
+Charlie  2 shifts
+Diana    2 shifts
+Edward   1 shift
+```
+
+Results:
+
+```text
+Staffing coverage:       100.0%
+Preference satisfaction: 88.9%
+Workload imbalance:      1
+Objective value:         250
+```
+
+One preferred shift is sacrificed, but the workload becomes more balanced.
+
+## Comparing the results
+
+| Fairness weight | Preference satisfaction | Workload imbalance | Objective |
+| ---: | ---: | ---: | ---: |
+| 0 | 100.0% | 2 | 0 |
+| 10 | 100.0% | 2 | 20 |
+| 150 | 88.9% | 1 | 250 |
+
+The important part is not that one result is always better.
+
+The weights decide how the model values competing goals.
+
+## Why the threshold is around 100
+
+The preference-first schedule has:
+
+```text
+0 preference violations
+workload imbalance = 2
+```
+
+Its objective is:
+
+```text
+2w
+```
+
+The more balanced schedule has:
+
+```text
+1 preference violation
+workload imbalance = 1
+```
+
+Its objective is:
+
+```text
+100 + w
+```
+
+The balanced schedule becomes better when:
+
+```text
+100 + w < 2w
+
+w > 100
+```
+
+At `w = 100`, both solutions can have the same objective value.
+
+## What I learned
+
+This experiment showed me that objective weights are not just solver parameters.
+
+They represent business priorities.
+
+A small fairness weight tells the solver:
+
+> Keep employee preferences unless fairness can improve almost for free.
+
+A larger weight tells it:
+
+> A more balanced workload may be worth sacrificing some preferences.
+
+That trade-off is part of the model design, not something CP-SAT decides automatically.
+
+## Current limitation
+
+The current fairness metric only compares the number of assigned shifts.
+
+It does not yet consider that employees may have different availability or maximum capacity.
+
+A future version could compare workload relative to each employee's available capacity instead.
+
+For `v0.2`, I keep the metric simple so the behavior is easy to understand and verify.
